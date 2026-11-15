@@ -6,3 +6,11 @@ venv/
 tectonic_bin/
 .DS_Store
 Thumbs.db
+
+# Documentos, diapositivas y salidas generadas fuera del programa
+*.tex
+*.pdf
+diapositivas_guion.md
+app.py
+grafo_red_51b.png
+frontera_decision_perceptron.png
