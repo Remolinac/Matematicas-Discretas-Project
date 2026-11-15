@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estación de Control · Corredor Cra. 51B (MAT 4021)</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%2324292F' stroke='%23C69C4E' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23C25632' stroke='%23EFECE1' stroke-width='2'/%3E%3C/svg%3E">
+
+  <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- KaTeX CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Estilos: Simulador Táctico Ilustrado -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-viewport">
+
+  <!-- Dock Táctico Superior Persistente (68px) -->
+  <header class="app-topbar">
+    <div class="topbar-left">
+      <div class="app-logo-badge">MAT 4021</div>
+      <div class="app-title-group">
+        <span class="app-title">Corredor Universitario Cra. 51B</span>
+        <span class="app-subtitle">Universidad del Norte · Simulador Discreto</span>
+      </div>
+    </div>
+
+    <!-- Selector Central con Placas Ilustradas -->
+    <nav class="tactical-dock" aria-label="Navegación principal de módulos">
+      <button type="button" class="dock-plaque-btn active" data-tab="view-menu">
+        <span class="plaque-frame">
+          <img src="/assets/btn-home.jpg" alt="" aria-hidden="true">
+        </span>
+        <span class="dock-plaque-label">Menú</span>
+      </button>
+      <button type="button" class="dock-plaque-btn" data-tab="view-map">
+        <span class="plaque-frame">
+          <img src="/assets/btn-nav-map.jpg" alt="" aria-hidden="true">
+        </span>
+        <span class="dock-plaque-label">Red 51B</span>
+      </button>
+      <button type="button" class="dock-plaque-btn" data-tab="view-centralities">
+        <span class="plaque-frame">
+          <img src="/assets/btn-nav-graph.jpg" alt="" aria-hidden="true">
+        </span>
+        <span class="dock-plaque-label">Grafo 6 Nodos</span>
+      </button>
+      <button type="button" class="dock-plaque-btn" data-tab="view-perceptron">
+        <span class="plaque-frame">
+          <img src="/assets/btn-nav-perceptron.jpg" alt="" aria-hidden="true">
+        </span>
+        <span class="dock-plaque-label">Perceptrón</span>
+      </button>
+      <button type="button" class="dock-plaque-btn" data-tab="view-impact">
+        <span class="plaque-frame">
+          <img src="/assets/btn-nav-impact.jpg" alt="" aria-hidden="true">
+        </span>
+        <span class="dock-plaque-label">Impacto</span>
+      </button>
+    </nav>
+
+    <!-- Indicador de Estado de Convergencia -->
+    <div class="topbar-right">
+      <div class="status-badge-convergencia" id="topbar-status-badge">
+        <span class="live-dot"></span>
+        <span>Convergencia · Época 2</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Espacio de Trabajo Principal -->
+  <main class="app-workspace">
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 0: MENÚ PRINCIPAL DE BIENVENIDA                                 -->
+    <!-- ===================================================================== -->
+    <section id="view-menu" class="tab-view active" aria-label="Menú principal del simulador">
+      <div class="menu-board-shell">
+
+        <!-- Cabecera Institucional -->
+        <div class="menu-hero-header">
+          <div class="menu-title-block">
+            <h1 class="menu-station-title">Estación de Control — Corredor Cra. 51B</h1>
+            <p class="menu-station-subtitle">
+              Modelado en grafos geodésicos y perceptrón de Rosenblatt para optimización de despacho frente a obras en La Gran Vía
+            </p>
+          </div>
+          <div class="menu-institutional-stamp">
+            <span class="stamp-course">MAT 4021 — Universidad del Norte</span>
+            <span class="stamp-meta" id="menu-api-status">Telemetría determinista · Barranquilla</span>
+          </div>
+        </div>
+
+        <!-- Franja de Telemetría en Vivo (/api/data) -->
+        <div class="menu-telemetry-strip" aria-label="Resumen operativo del corredor">
+          <div class="telemetry-tile">
+            <span class="telemetry-label">Topología Activa</span>
+            <strong class="telemetry-value" id="menu-tel-nodes">15 Nodos · 20 Tramos</strong>
+            <span class="telemetry-detail" id="menu-tel-road">Calzada Gran Vía habilitada</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="telemetry-label">Refuerzos Prioritarios</span>
+            <strong class="telemetry-value terracotta" id="menu-tel-reinforce">4 / 15 Paraderos (y=1)</strong>
+            <span class="telemetry-detail" id="menu-tel-maxnode">Máx. C<sub>B</sub>': P09 (0.537)</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="telemetry-label">Perceptrón de Rosenblatt</span>
+            <strong class="telemetry-value sage" id="menu-tel-convergence">Convergencia · Época 2</strong>
+            <span class="telemetry-detail" id="menu-tel-weights">w = [0.20, 0.60] · b = -0.50</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="telemetry-label">Reducción de Espera</span>
+            <strong class="telemetry-value brass" id="menu-tel-savings">28.8 → 12.4 min (-56.8%)</strong>
+            <span class="telemetry-detail" id="menu-tel-saved-pax">+2,526 usuarios abordaron sin rechazo</span>
+          </div>
+        </div>
+
+        <!-- Cuadrícula 2x2 de Módulos Ilustrados -->
+        <div class="menu-cards-grid" role="list" aria-label="Menú Principal">
+
+          <button type="button" class="menu-module-card" data-tab="view-map" role="listitem">
+            <div class="menu-card-art">
+              <img src="/assets/menu-corredor.jpg" alt="Mapa táctico ilustrado de los 15 paraderos del Corredor Cra. 51B">
+            </div>
+            <div class="menu-card-body">
+              <div class="menu-card-meta">
+                <span class="menu-card-tag petrol">Mapa Geodésico</span>
+                <span class="menu-card-code">Módulo 01</span>
+              </div>
+              <div class="menu-card-copy">
+                <h2 class="menu-card-title">Red del Corredor — 15 Paraderos</h2>
+                <p class="menu-card-desc">
+                  Auditoría en mapa real de Barranquilla, simulación de cierre en La Gran Vía y clasificación de refuerzo por paradero.
+                </p>
+              </div>
+              <div class="menu-card-footer">Abrir módulo geodésico</div>
+            </div>
+          </button>
+
+          <button type="button" class="menu-module-card" data-tab="view-centralities" role="listitem">
+            <div class="menu-card-art">
+              <img src="/assets/menu-grafo.jpg" alt="Diagrama ilustrado del subgrafo diamante de 6 nodos y ondas BFS">
+            </div>
+            <div class="menu-card-body">
+              <div class="menu-card-meta">
+                <span class="menu-card-tag brass">Subgrafo C₄</span>
+                <span class="menu-card-code">Módulo 02</span>
+              </div>
+              <div class="menu-card-copy">
+                <h2 class="menu-card-title">Caso de Prueba — 6 Nodos BFS y Freeman</h2>
+                <p class="menu-card-desc">
+                  Ondas de distancia BFS por capas, matrices A(G) y D(G), centralidades de Freeman y empates σ<sub>st</sub> = 2.
+                </p>
+              </div>
+              <div class="menu-card-footer">Abrir caso de prueba</div>
+            </div>
+          </button>
+
+          <button type="button" class="menu-module-card" data-tab="view-perceptron" role="listitem">
+            <div class="menu-card-art">
+              <img src="/assets/menu-perceptron.jpg" alt="Plano bidimensional de separación lineal del Perceptrón de Rosenblatt">
+            </div>
+            <div class="menu-card-body">
+              <div class="menu-card-meta">
+                <span class="menu-card-tag terracotta">Frontera en ℝ²</span>
+                <span class="menu-card-code">Módulo 03</span>
+              </div>
+              <div class="menu-card-copy">
+                <h2 class="menu-card-title">Perceptrón de Rosenblatt</h2>
+                <p class="menu-card-desc">
+                  Calibración interactiva de pesos (η, b₀, w₁, w₂), recta de separación oblicua y traza completa por época.
+                </p>
+              </div>
+              <div class="menu-card-footer">Abrir clasificador lineal</div>
+            </div>
+          </button>
+
+          <button type="button" class="menu-module-card" data-tab="view-impact" role="listitem">
+            <div class="menu-card-art">
+              <img src="/assets/menu-impacto.jpg" alt="Comparativa operativa de flujo vehicular antes y después del modelo">
+            </div>
+            <div class="menu-card-body">
+              <div class="menu-card-meta">
+                <span class="menu-card-tag sage">Despacho Operativo</span>
+                <span class="menu-card-code">Módulo 04</span>
+              </div>
+              <div class="menu-card-copy">
+                <h2 class="menu-card-title">Simulación de Impacto — Antes vs. Después</h2>
+                <p class="menu-card-desc">
+                  Comparativa entre frecuencia estática y despacho guiado por IA discreta: espera en andén y tasa de sobrecupo.
+                </p>
+              </div>
+              <div class="menu-card-footer">Abrir evaluación operativa</div>
+            </div>
+          </button>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 1: RED DEL CORREDOR (15 NODOS)                                 -->
+    <!-- ===================================================================== -->
+    <section id="view-map" class="tab-view" aria-label="Red del Corredor Cra. 51B">
+
+      <!-- Sidebar Izquierdo -->
+      <aside class="map-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title-row">
+            <h2 class="sidebar-heading">Paraderos del Corredor</h2>
+            <span class="stop-code" id="kpi-total-stops">15 Nodos</span>
+          </div>
+
+          <!-- Placa de Contingencia Vial: La Gran Vía -->
+          <button type="button" id="btn-toggle-gran-via" class="tactile-toggle-plaque" aria-pressed="false">
+            <span class="plaque-frame md road-state-art">
+              <img src="/assets/btn-road-open.jpg" class="art-road-open" alt="" aria-hidden="true">
+              <img src="/assets/btn-road-closed.jpg" class="art-road-closed" alt="" aria-hidden="true">
+            </span>
+            <span class="contingency-info">
+              <span class="contingency-label">Obras en La Gran Vía (P04 ↔ P07)</span>
+              <span class="contingency-desc" id="gran-via-desc">Flujo normal: calzada habilitada</span>
+            </span>
+            <span class="toggle-state-chip open" id="gran-via-state-chip">ABIERTA</span>
+          </button>
+
+          <!-- Resumen de KPIs de la Red -->
+          <div class="kpi-mini-grid">
+            <div class="kpi-mini-box">
+              <div class="kpi-mini-title">Refuerzos (y=1)</div>
+              <div class="kpi-mini-value red" id="kpi-total-reinforcements">4 / 15</div>
+            </div>
+            <div class="kpi-mini-box">
+              <div class="kpi-mini-title">Máx Intermed.</div>
+              <div class="kpi-mini-value blue" id="kpi-max-betweenness">P09 (0.537)</div>
+            </div>
+            <div class="kpi-mini-box">
+              <div class="kpi-mini-title">Espera Media</div>
+              <div class="kpi-mini-value" id="kpi-avg-wait">12.4 min</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buscador y Placa de Limpieza -->
+        <div class="sidebar-search-box">
+          <input type="text" id="search-stops" class="search-input-dark" placeholder="Buscar por código (ej. P07) o nombre..." aria-label="Buscar paradero">
+          <button type="button" id="btn-filter-all" class="plaque-btn-compact" title="Mostrar los 15 paraderos y limpiar filtro">
+            <span class="plaque-frame sm">
+              <img src="/assets/btn-filter-all.jpg" alt="" aria-hidden="true">
+            </span>
+            <span>Todas</span>
+          </button>
+        </div>
+
+        <!-- Lista de Tarjetas con Barras Visuales -->
+        <div class="sidebar-stops-list" id="stops-cards-list">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </aside>
+
+      <!-- Lienzo del Mapa Leaflet -->
+      <div class="map-canvas-container">
+        <div id="leaflet-map"></div>
+
+        <!-- Panel Flotante Inferior Derecho: Evaluación en Vivo -->
+        <div class="floating-equation-panel" id="floating-equation-panel">
+          <div class="equation-panel-title">Evaluación Nodal en Tiempo Real</div>
+          <div class="equation-panel-formula" id="float-eval-formula">
+            z = 0.20 · C<sub>B</sub>' + 0.60 · Demanda - 0.50
+          </div>
+          <div class="equation-panel-detail" id="float-eval-detail">
+            Selecciona un paradero para auditar su clasificación z ≥ 0.
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 2: CASO DE PRUEBA CONOCIDO (6 NODOS - BFS Y CENTRALIDAD)        -->
+    <!-- ===================================================================== -->
+    <section id="view-centralities" class="tab-view" aria-label="Caso de Prueba de 6 Nodos">
+
+      <!-- Columna Izquierda (55%): Lienzo SVG Interactivo -->
+      <div class="studio-canvas-col">
+        <div class="studio-toolbar">
+          <div>
+            <h2 class="studio-title">Subgrafo Diamante C₄ con Cola (6 Nodos)</h2>
+            <div class="studio-subtitle">Selecciona un vértice raíz para trazar las ondas geodésicas BFS por capas</div>
+          </div>
+          <button type="button" id="btn-reset-bfs" class="plaque-btn-inline">
+            <span class="plaque-frame sm">
+              <img src="/assets/btn-reset-bfs.jpg" alt="" aria-hidden="true">
+            </span>
+            <span>Restablecer Capas</span>
+          </button>
+        </div>
+
+        <!-- Selector Medallón de Nodo Raíz Rápido -->
+        <div class="bfs-root-bar">
+          <span class="bfs-root-label">Nodo Raíz BFS:</span>
+          <div class="bfs-quick-nodes" id="bfs-quick-nodes">
+            <button type="button" class="node-chip-plaque active" data-node="0" aria-label="Trazar BFS desde v1">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v1</span>
+            </button>
+            <button type="button" class="node-chip-plaque" data-node="1" aria-label="Trazar BFS desde v2">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v2</span>
+            </button>
+            <button type="button" class="node-chip-plaque" data-node="2" aria-label="Trazar BFS desde v3">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v3</span>
+            </button>
+            <button type="button" class="node-chip-plaque" data-node="3" aria-label="Trazar BFS desde v4">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v4</span>
+            </button>
+            <button type="button" class="node-chip-plaque" data-node="4" aria-label="Trazar BFS desde v5">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v5</span>
+            </button>
+            <button type="button" class="node-chip-plaque" data-node="5" aria-label="Trazar BFS desde v6">
+              <img src="/assets/btn-node-chip.jpg" alt="" aria-hidden="true">
+              <span class="node-chip-label">v6</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="svg-viewport">
+          <svg id="svg-graph-6" viewBox="0 0 820 440" class="graph-svg-wide" role="img" aria-label="Grafo diamante de seis vértices"></svg>
+        </div>
+
+        <!-- Banner Explicativo de Caminos Empatados -->
+        <div class="bfs-hud-banner-dark" id="bfs-status-banner">
+          <strong class="accent-brass-text">Demostración de Caminos Empatados (σ<sub>st</sub> = 2):</strong>
+          Entre v1 y v4 existen 2 caminos mínimos de longitud 2: <em>v1–v2–v4</em> y <em>v1–v3–v4</em>. Cada nodo intermediario recibe un aporte fraccionario de 1/2 = 0.50.
+        </div>
+      </div>
+
+      <!-- Columna Derecha (45%): Tablas Académicas con Subpestañas Ilustradas -->
+      <div class="studio-data-col">
+        <div class="data-col-header">
+          <div class="segmented-subnav-dark">
+            <button type="button" class="subnav-plaque-btn active" data-subview="subview-freeman">
+              <span class="plaque-frame xs">
+                <img src="/assets/btn-sub-freeman.jpg" alt="" aria-hidden="true">
+              </span>
+              <span>Centralidades</span>
+            </button>
+            <button type="button" class="subnav-plaque-btn" data-subview="subview-matrices">
+              <span class="plaque-frame xs">
+                <img src="/assets/btn-sub-matrices.jpg" alt="" aria-hidden="true">
+              </span>
+              <span>Matrices A y D</span>
+            </button>
+            <button type="button" class="subnav-plaque-btn" data-subview="subview-ties">
+              <span class="plaque-frame xs">
+                <img src="/assets/btn-sub-ties.jpg" alt="" aria-hidden="true">
+              </span>
+              <span>Identidad (14.0)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="data-panel-body">
+
+          <!-- Sub-pestaña 1: Tabla de Centralidades -->
+          <div id="subview-freeman" class="data-subview active">
+            <div class="table-scroll-x">
+              <table class="table-dark" id="table-freeman-6">
+                <thead>
+                  <tr>
+                    <th>Vértice</th>
+                    <th>Paradero</th>
+                    <th>deg(v)</th>
+                    <th>C<sub>D</sub>(v)</th>
+                    <th>∑ d(v,u)</th>
+                    <th>C<sub>C</sub>(v)</th>
+                    <th>C<sub>B</sub>(v)</th>
+                    <th>C<sub>B</sub>'(v)</th>
+                    <th>Decisión</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-freeman-6">
+                  <!-- Inyectado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="box-dark-academic">
+              <strong class="accent-petrol-text">Fórmula de Normalización Combinatoria</strong>
+              <div class="katex-eq katex-display-box" data-formula="C_B'(v) = \frac{C_B(v)}{\binom{n-1}{2}} = \frac{C_B(v)}{10}"></div>
+              <p class="academic-note">
+                Acota la intermediación geodésica al intervalo [0, 1] sobre los 10 pares posibles no dirigidos, homogéneo con la demanda x₂ del Perceptrón.
+              </p>
+            </div>
+          </div>
+
+          <!-- Sub-pestaña 2: Matrices A y D -->
+          <div id="subview-matrices" class="data-subview">
+            <div class="matrix-toggle-row">
+              <button type="button" class="plaque-btn-inline active" id="btn-matrix-adj">
+                <span class="plaque-frame sm">
+                  <img src="/assets/btn-matrix-adj.jpg" alt="" aria-hidden="true">
+                </span>
+                <span>Adyacencia A(G)</span>
+              </button>
+              <button type="button" class="plaque-btn-inline" id="btn-matrix-dist">
+                <span class="plaque-frame sm">
+                  <img src="/assets/btn-matrix-dist.jpg" alt="" aria-hidden="true">
+                </span>
+                <span>Distancias D(G)</span>
+              </button>
+            </div>
+            <div id="matrix-display-container" class="matrix-stage-box">
+              <!-- Renderizado KaTeX -->
+            </div>
+            <div class="academic-note" id="matrix-footnote">
+              Matriz simétrica binaria en {0, 1}<sup>6×6</sup>: 6 aristas no dirigidas (12 entradas unitarias).
+            </div>
+          </div>
+
+          <!-- Sub-pestaña 3: Identidad de Freeman -->
+          <div id="subview-ties" class="data-subview">
+            <div class="box-dark-academic">
+              <div class="academic-box-heading">Teorema de Conservación Geodésica de Freeman</div>
+              <div class="katex-eq katex-display-box sage" data-formula="\sum_{v \in V} C_B(v) = \sum_{s < t} \big(d(s,t) - 1\big) = 14.00"></div>
+              <p class="academic-note">
+                La suma exacta de intermediaciones en el subgrafo de prueba coincide con la suma de excesos geodésicos sobre los 15 pares de vértices distintos.
+              </p>
+            </div>
+
+            <div class="subview-section-title">Desglose de Pares con Multiplicidad σ<sub>st</sub> = 2</div>
+            <div class="table-scroll-x">
+              <table class="table-dark" id="table-ties-6">
+                <thead>
+                  <tr>
+                    <th>Par (s, t)</th>
+                    <th>Extremos</th>
+                    <th>σ<sub>st</sub></th>
+                    <th>Nodo v</th>
+                    <th>σ<sub>st</sub>(v)</th>
+                    <th>Aporte</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-ties-6">
+                  <!-- Inyectado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 3: PERCEPTRÓN DE ROSENBLATT                                      -->
+    <!-- ===================================================================== -->
+    <section id="view-perceptron" class="tab-view" aria-label="Perceptrón de Rosenblatt">
+
+      <!-- Panel Izquierdo: Sliders y Parámetros -->
+      <aside class="perceptron-controls-col">
+        <div>
+          <h2 class="panel-heading-title">Hiperparámetros del Perceptrón</h2>
+          <div class="panel-heading-sub">Calibración determinista de Rosenblatt (1958)</div>
+        </div>
+
+        <div class="slider-group-dark">
+          <div class="slider-label-row">
+            <label for="slider-eta">Tasa de Aprendizaje (η)</label>
+            <span class="slider-val-badge-dark" id="val-eta">0.50</span>
+          </div>
+          <input type="range" id="slider-eta" class="custom-slider-dark" min="0.05" max="1.00" step="0.05" value="0.50">
+        </div>
+
+        <div class="slider-group-dark">
+          <div class="slider-label-row">
+            <label for="slider-b0">Sesgo Inicial (b₀)</label>
+            <span class="slider-val-badge-dark" id="val-b0">-1.00</span>
+          </div>
+          <input type="range" id="slider-b0" class="custom-slider-dark" min="-2.00" max="0.00" step="0.10" value="-1.00">
+        </div>
+
+        <div class="slider-group-dark">
+          <div class="slider-label-row">
+            <label for="slider-w1">Peso Inicial w₁ (C<sub>B</sub>')</label>
+            <span class="slider-val-badge-dark" id="val-w1">0.00</span>
+          </div>
+          <input type="range" id="slider-w1" class="custom-slider-dark" min="-1.00" max="1.00" step="0.10" value="0.00">
+        </div>
+
+        <div class="slider-group-dark">
+          <div class="slider-label-row">
+            <label for="slider-w2">Peso Inicial w₂ (Demanda)</label>
+            <span class="slider-val-badge-dark" id="val-w2">0.00</span>
+          </div>
+          <input type="range" id="slider-w2" class="custom-slider-dark" min="-1.00" max="1.00" step="0.10" value="0.00">
+        </div>
+
+        <button type="button" id="btn-restore-perceptron" class="plaque-btn-inline full-width">
+          <span class="plaque-frame sm">
+            <img src="/assets/btn-restore-weights.jpg" alt="" aria-hidden="true">
+          </span>
+          <span>Restaurar Valores del Informe</span>
+        </button>
+
+        <!-- Tarjeta de Pesos y Recta -->
+        <div class="weights-card-dark">
+          <div class="weights-card-label">Vector de Pesos y Sesgo Final</div>
+          <div class="weights-grid-dark">
+            <div class="weight-mini-box-dark">
+              <div class="weight-mini-name">w₁ (C<sub>B</sub>')</div>
+              <div class="weight-box-val-dark" id="stat-w1">0.200</div>
+            </div>
+            <div class="weight-mini-box-dark">
+              <div class="weight-mini-name">w₂ (Dem)</div>
+              <div class="weight-box-val-dark" id="stat-w2">0.600</div>
+            </div>
+            <div class="weight-mini-box-dark">
+              <div class="weight-mini-name">Sesgo b</div>
+              <div class="weight-box-val-dark" id="stat-b">-0.500</div>
+            </div>
+          </div>
+
+          <div class="equation-box-dark">
+            <div class="equation-box-caption">Frontera de Decisión Oblicua</div>
+            <div id="equation-hyperplane" class="equation-box-formula">
+              0.200 · x₁ + 0.600 · x₂ - 0.500 = 0
+            </div>
+            <div id="equation-slope-intercept" class="equation-box-slope">
+              x₂ = -0.333 · x₁ + 0.833
+            </div>
+          </div>
+
+          <div class="status-badge-convergencia centered" id="convergence-badge">
+            <span class="live-dot"></span>
+            <span>Convergencia en Época 2 (Error = 0)</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Panel Derecho: Gráfica 2D + Tabla de Traza -->
+      <div class="perceptron-visual-col">
+
+        <!-- Gráfica 2D -->
+        <div class="chart-pane-top">
+          <div class="chart-pane-header">
+            <h2 class="chart-pane-title">Espacio de Características (C<sub>B</sub>', Demanda) y Recta de Separación</h2>
+            <span class="chart-pane-legend">
+              Región terracota: Refuerzo (y = 1) · Región petróleo: Estándar (y = 0)
+            </span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="chart-decision-boundary"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabla de Entrenamiento Paso a Paso -->
+        <div class="trace-pane-bottom">
+          <div class="trace-header-row">
+            <div class="trace-title-group">
+              <span class="trace-title">Traza de Entrenamiento Paso a Paso</span>
+              <span class="trace-subtitle">
+                Terracota: Error (e ≠ 0) · Salvia: Acierto (e = 0)
+              </span>
+            </div>
+            <div class="segmented-subnav-dark" id="epoch-filter-group">
+              <button type="button" class="subnav-plaque-btn active" data-epoch="all">
+                <span class="plaque-frame xs">
+                  <img src="/assets/btn-epoch-all.jpg" alt="" aria-hidden="true">
+                </span>
+                <span>Todas</span>
+              </button>
+              <button type="button" class="subnav-plaque-btn" data-epoch="1">
+                <span class="plaque-frame xs">
+                  <img src="/assets/btn-epoch-step.jpg" alt="" aria-hidden="true">
+                </span>
+                <span>Época 1</span>
+              </button>
+              <button type="button" class="subnav-plaque-btn" data-epoch="2">
+                <span class="plaque-frame xs">
+                  <img src="/assets/btn-epoch-step.jpg" alt="" aria-hidden="true">
+                </span>
+                <span>Época 2</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="trace-table-scroll">
+            <table class="table-dark" id="table-perceptron-trace">
+              <thead>
+                <tr>
+                  <th>Época</th>
+                  <th>Nodo</th>
+                  <th>x₁ (C<sub>B</sub>')</th>
+                  <th>x₂ (Dem)</th>
+                  <th>y<sub>real</sub></th>
+                  <th>z = wᵀx + b</th>
+                  <th>φ(z)</th>
+                  <th>Error e</th>
+                  <th>Δw₁</th>
+                  <th>Δw₂</th>
+                  <th>Δb</th>
+                  <th>w₁'</th>
+                  <th>w₂'</th>
+                  <th>b'</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-perceptron-trace">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 4: SIMULACIÓN DE IMPACTO (ANTES VS. DESPUÉS)                     -->
+    <!-- ===================================================================== -->
+    <section id="view-impact" class="tab-view" aria-label="Simulación de Impacto Operativo">
+
+      <div class="impact-content-container">
+
+        <!-- Barra de Control Operativo -->
+        <div class="sim-toolbar-dark">
+          <div>
+            <h2 class="impact-toolbar-title">Evaluación de Impacto Operativo — Antes vs. Después</h2>
+            <div class="impact-toolbar-sub" id="impact-sim-meta">
+              Ventana evaluada: 10 horas pico · 4 buses de refuerzo en vacío (40 sillas/bus)
+            </div>
+          </div>
+          <div class="impact-toolbar-actions">
+            <button type="button" id="btn-impact-compare" class="plaque-btn-inline">
+              <span class="plaque-frame sm">
+                <img src="/assets/btn-compare.jpg" alt="" aria-hidden="true">
+              </span>
+              <span id="label-impact-compare">Comparar Rechazo (%)</span>
+            </button>
+            <button type="button" id="btn-impact-to-map" class="plaque-btn-inline">
+              <span class="plaque-frame sm">
+                <img src="/assets/btn-nav-map.jpg" alt="" aria-hidden="true">
+              </span>
+              <span>Auditar en Mapa</span>
+            </button>
+            <button type="button" id="btn-impact-to-menu" class="plaque-btn-inline">
+              <span class="plaque-frame sm">
+                <img src="/assets/btn-home.jpg" alt="" aria-hidden="true">
+              </span>
+              <span>Menú</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KPIs Comparativos Reales del Motor Discreto -->
+        <div class="kpi-row-grid-dark">
+
+          <div class="kpi-box-dark">
+            <div class="kpi-title-text">Tiempo Medio de Espera</div>
+            <div class="kpi-values-flow">
+              <span class="kpi-before-dark" id="metric-wait-est">28.8 min</span>
+              <span class="kpi-arrow">→</span>
+              <span class="kpi-after-dark" id="metric-wait-dyn">12.4 min</span>
+            </div>
+            <div class="kpi-pill-delta" id="metric-wait-pct">▼ Reducción del 56.8%</div>
+          </div>
+
+          <div class="kpi-box-dark">
+            <div class="kpi-title-text">Rechazados por Sobrecupo</div>
+            <div class="kpi-values-flow">
+              <span class="kpi-before-dark" id="metric-reject-est">39.4%</span>
+              <span class="kpi-arrow">→</span>
+              <span class="kpi-after-dark" id="metric-reject-dyn">20.3%</span>
+            </div>
+            <div class="kpi-pill-delta" id="metric-reject-pct">▼ Reducción del 48.6%</div>
+          </div>
+
+          <div class="kpi-box-dark">
+            <div class="kpi-title-text">Pasajeros Rechazados (10 h)</div>
+            <div class="kpi-values-flow">
+              <span class="kpi-before-dark" id="metric-pax-rej-est">5,216</span>
+              <span class="kpi-arrow">→</span>
+              <span class="kpi-after-dark" id="metric-pax-rej-dyn">2,690</span>
+            </div>
+            <div class="kpi-pill-delta" id="metric-pax-saved">+2,526 usuarios abordaron</div>
+          </div>
+
+          <div class="kpi-box-dark">
+            <div class="kpi-title-text">Horas-Pasajero Ahorradas</div>
+            <div class="kpi-values-flow">
+              <span class="kpi-after-dark brass" id="metric-hours-saved">3,394.5 h-pax</span>
+            </div>
+            <div class="kpi-pill-delta neutral" id="metric-total-pax">10,680 pasajeros simulados</div>
+          </div>
+
+        </div>
+
+        <!-- Gráfica de Barras Comparativa (Chart.js) -->
+        <div class="impact-card-dark">
+          <div class="impact-card-head">
+            <div>
+              <h3 class="impact-card-title" id="impact-chart-title">
+                Comparación de Tiempos de Espera por Paradero (Estático vs. Perceptrón Dinámico)
+              </h3>
+              <div class="impact-card-sub" id="impact-chart-sub">
+                Minutos promedio en andén durante hora pico en el Corredor Cra. 51B
+              </div>
+            </div>
+          </div>
+          <div class="impact-chart-wrap">
+            <canvas id="chart-impact-bars"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabla Resumen Detallada por Paradero -->
+        <div class="impact-card-dark">
+          <h3 class="impact-card-title spaced">
+            Desglose Operativo por Paradero en el Corredor Cra. 51B
+          </h3>
+          <div class="table-scroll-x">
+            <table class="table-dark" id="table-impact-detail">
+              <thead>
+                <tr>
+                  <th>Cód</th>
+                  <th>Paradero</th>
+                  <th>Acción</th>
+                  <th>Espera Base</th>
+                  <th>Espera Modelo</th>
+                  <th>Ahorro Espera</th>
+                  <th>Rechazo Base</th>
+                  <th>Rechazo Modelo</th>
+                  <th>Alivio Rechazo</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-impact-detail">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Script principal de la aplicación -->
+  <script src="app.js"></script>
+</body>
+</html>
